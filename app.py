@@ -1,13 +1,56 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 import sqlite3
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.') # Thêm template_folder='.' để Flask nhận file index.html nằm ở ngoài
+
 app.secret_key = 'secet_key_oee_factory'
 
 def get_db_connection():
     conn = sqlite3.connect('factory_oee.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+def init_db():
+    conn = sqlite3.connect('factory_oee.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Users (
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Machines (
+            machine_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_name TEXT NOT NULL,
+            status TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ProductionLogs (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id INTEGER,
+            total_count INTEGER DEFAULT 0,
+            good_count INTEGER DEFAULT 0,
+            defect_count INTEGER DEFAULT 0,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('quanly', '123456', 'ADMIN')")
+    cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('nhanvien1', '123456', 'OPERATOR')")
+    
+    cursor.execute("SELECT COUNT(*) FROM Machines")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Cắt CNC 01', 'RUNNING')")
+        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Ép Nhựa 02', 'RUNNING')")
+        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Đóng Gói 03', 'STOPPED')")
+        
+    conn.commit()
+    conn.close()
+
+init_db()
 
 @app.route('/')
 def index():
@@ -31,11 +74,11 @@ def login():
             return redirect(url_for('index'))
         return "Sai tài khoản hoặc mật khẩu!"
     return '''
-        <form method="post" style="max-width:300px;margin:50px auto;padding:20px;border:1px solid #ccc">
+        <form method="post" style="max-width:300px;margin:50px auto;padding:20px;border:1px solid #ccc;font-family:sans-serif;">
             <h2>Đăng nhập Hệ Thống OEE</h2>
-            Mã/Tên nhân viên: <br><input type="text" name="username" required><br><br>
-            Mật khẩu: <br><input type="password" name="password" required><br><br>
-            <input type="submit" value="Đăng nhập">
+            Mã/Tên nhân viên: <br><input type="text" name="username" required style="width:100%;margin-bottom:10px;"><br>
+            Mật khẩu: <br><input type="password" name="password" required style="width:100%;margin-bottom:15px;"><br>
+            <input type="submit" value="Đăng nhập" style="padding:8px 15px;background:#2563eb;color:white;border:none;cursor:pointer;">
         </form>
     '''
 
@@ -44,7 +87,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# API cho nhân viên cập nhật sản lượng thực tế
 @app.route('/api/update-production', methods=['POST'])
 def update_production():
     if session.get('role') not in ['ADMIN', 'OPERATOR']:
