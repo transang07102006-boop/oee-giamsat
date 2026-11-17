@@ -26,9 +26,12 @@
             margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
         .header h1 { font-size: 1.35rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
-        .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
+        .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; flex-wrap: wrap; }
         .badge-role { background: #3b82f6; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; }
+        .btn-reset { background: #f59e0b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .btn-reset:hover { background: #d97706; }
         .btn-logout { background: #ef4444; color: white; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-weight: 500; }
+        .btn-logout:hover { background: #dc2626; }
 
         /* Tổng quan KPI */
         .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -92,6 +95,9 @@
         <div class="user-info">
             <span>Xin chào: <strong>{{ user.username }}</strong></span>
             <span class="badge-role">{{ user.role }}</span>
+            {% if user.role == 'ADMIN' %}
+            <button class="btn-reset" onclick="resetShift()">🔄 Làm mới ca</button>
+            {% endif %}
             <a href="/logout" class="btn-logout">Đăng xuất</a>
         </div>
     </div>
@@ -282,8 +288,23 @@
                 closeModal();
                 loadDashboard();
             } else {
-                errEl.innerText = 'Lỗi khi lưu dữ liệu!';
+                const errData = await res.json();
+                errEl.innerText = errData.message || 'Lỗi khi lưu dữ liệu!';
                 errEl.style.display = 'block';
+            }
+        }
+
+        async function resetShift() {
+            if (!confirm('Bạn có chắc chắn muốn làm mới ca làm việc? Toàn bộ số liệu sản lượng hiện tại sẽ được đặt về 0!')) {
+                return;
+            }
+            const res = await fetch('/api/reset-shift', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Đã làm mới ca làm việc thành công!');
+                loadDashboard();
+            } else {
+                alert(data.message || 'Không có quyền thực hiện!');
             }
         }
 
