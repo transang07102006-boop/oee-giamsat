@@ -26,9 +26,12 @@
             margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
         .header h1 { font-size: 1.35rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
-        .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
+        .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; flex-wrap: wrap; }
         .badge-role { background: #3b82f6; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; }
+        .btn-reset { background: #f59e0b; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .btn-reset:hover { background: #d97706; }
         .btn-logout { background: #ef4444; color: white; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-weight: 500; }
+        .btn-logout:hover { background: #dc2626; }
 
         /* Tổng quan KPI */
         .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -41,14 +44,20 @@
         .machine-card {
             background: var(--card-bg); border-radius: 12px; padding: 20px;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border-top: 5px solid var(--success);
-            transition: transform 0.2s;
+            display: flex; flex-direction: column; justify-content: space-between;
         }
-        .machine-card.stopped { border-top-color: var(--danger); }
-        .machine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .machine-card.stopped { border-top-color: var(--danger); background: #fffafb; }
+        .machine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
         .machine-name { font-size: 1.15rem; font-weight: 700; }
-        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
         .status-running { background: #d1fae5; color: #065f46; }
         .status-stopped { background: #fee2e2; color: #991b1b; }
+
+        /* Hộp hiển thị lý do dừng máy */
+        .stop-reason-box {
+            background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b;
+            padding: 10px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px;
+        }
 
         .oee-main { text-align: center; background: #f8fafc; padding: 14px; border-radius: 10px; margin-bottom: 16px; }
         .oee-score { font-size: 2.2rem; font-weight: 800; color: var(--primary); }
@@ -60,27 +69,37 @@
         .apq-val { font-size: 1rem; font-weight: 700; margin-top: 2px; }
 
         .prod-stats { font-size: 0.9rem; color: #334155; margin-bottom: 16px; display: flex; justify-content: space-between; background: #f8fafc; padding: 10px; border-radius: 8px; }
+        .action-row { display: flex; gap: 8px; }
         .btn-report {
-            width: 100%; padding: 10px; background: var(--primary); color: white; border: none;
-            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.95rem;
+            flex: 2; padding: 10px; background: var(--primary); color: white; border: none;
+            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem;
         }
         .btn-report:hover { background: #1d4ed8; }
+        .btn-toggle {
+            flex: 1.2; padding: 10px; border: none; border-radius: 8px; font-weight: 600;
+            cursor: pointer; font-size: 0.85rem; color: white;
+        }
+        .btn-start { background: var(--success); }
+        .btn-start:hover { background: #059669; }
+        .btn-stop { background: var(--danger); }
+        .btn-stop:hover { background: #dc2626; }
 
         /* Khu vực biểu đồ */
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
         .chart-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .chart-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: #1e293b; }
 
-        /* Modal nhập liệu */
+        /* Modal chung */
         .modal { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); align-items: center; justify-content: center; z-index: 100; }
         .modal.active { display: flex; }
-        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 420px; }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn-cancel { background: #e2e8f0; color: #334155; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
         .btn-submit { background: var(--success); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-danger-submit { background: var(--danger); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
         
         @media (max-width: 500px) { .charts-grid { grid-template-columns: 1fr; } }
     </style>
@@ -92,6 +111,9 @@
         <div class="user-info">
             <span>Xin chào: <strong>{{ user.username }}</strong></span>
             <span class="badge-role">{{ user.role }}</span>
+            {% if user.role == 'ADMIN' %}
+            <button class="btn-reset" onclick="resetShift()">🔄 Làm mới ca</button>
+            {% endif %}
             <a href="/logout" class="btn-logout">Đăng xuất</a>
         </div>
     </div>
@@ -146,8 +168,35 @@
             </div>
             <div id="errorMsg" style="color: #ef4444; font-size: 0.85rem; display: none; margin-top: 8px;"></div>
             <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+                <button class="btn-cancel" onclick="closeModal('reportModal')">Hủy</button>
                 <button class="btn-submit" onclick="submitReport()">Lưu Báo Cáo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nhập Lý Do Dừng Máy -->
+    <div class="modal" id="stopModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 12px; color: #dc2626;" id="stopModalTitle">⚠️ Báo Dừng Hoạt Động Máy</h3>
+            <input type="hidden" id="stopMachineId">
+            <div class="form-group">
+                <label>Chọn nhanh sự cố thường gặp:</label>
+                <select id="quickReason" onchange="applyQuickReason()">
+                    <option value="">-- Chọn sự cố hoặc tự nhập bên dưới --</option>
+                    <option value="Hư hỏng cơ khí / Kẹt phôi">Hư hỏng cơ khí / Kẹt phôi</option>
+                    <option value="Lỗi cảm biến / Hệ thống điện">Lỗi cảm biến / Hệ thống điện</option>
+                    <option value="Chờ cấp nguyên vật liệu">Chờ cấp nguyên vật liệu</option>
+                    <option value="Bảo trì, hiệu chuẩn định kỳ">Bảo trì, hiệu chuẩn định kỳ</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Chi tiết lý do dừng máy (*):</label>
+                <input type="text" id="inputStopReason" placeholder="Nhập nguyên nhân cụ thể...">
+            </div>
+            <div id="stopErrorMsg" style="color: #ef4444; font-size: 0.85rem; display: none; margin-top: 8px;"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('stopModal')">Hủy</button>
+                <button class="btn-danger-submit" onclick="confirmStopMachine()">Xác Nhận Dừng</button>
             </div>
         </div>
     </div>
@@ -178,27 +227,41 @@
                 defectValues.push(Math.max(0, m.total_defect));
 
                 const isStopped = m.status !== 'RUNNING';
+                const reasonHtml = isStopped && m.stop_reason 
+                    ? `<div class="stop-reason-box"><strong>⚠️ Lý do dừng:</strong> ${m.stop_reason}</div>` 
+                    : '';
+
+                const toggleButton = isStopped
+                    ? `<button class="btn-toggle btn-start" onclick="startMachine(${m.machine_id})">▶ Chạy lại</button>`
+                    : `<button class="btn-toggle btn-stop" onclick="openStopModal(${m.machine_id}, '${m.machine_name}')">⏹ Dừng máy</button>`;
+
                 container.innerHTML += `
                     <div class="machine-card ${isStopped ? 'stopped' : ''}">
-                        <div class="machine-header">
-                            <span class="machine-name">${m.machine_name}</span>
-                            <span class="status-pill ${isStopped ? 'status-stopped' : 'status-running'}">${m.status}</span>
+                        <div>
+                            <div class="machine-header">
+                                <span class="machine-name">${m.machine_name}</span>
+                                <span class="status-pill ${isStopped ? 'status-stopped' : 'status-running'}">${isStopped ? 'STOPPED' : 'RUNNING'}</span>
+                            </div>
+                            ${reasonHtml}
+                            <div class="oee-main">
+                                <div style="font-size:0.8rem; color:#64748b; font-weight:600;">HIỆU SUẤT TỔNG THỂ (OEE)</div>
+                                <div class="oee-score" style="color: ${m.OEE >= 85 ? '#10b981' : (m.OEE >= 60 ? '#2563eb' : '#ef4444')}">${m.OEE}%</div>
+                            </div>
+                            <div class="apq-grid">
+                                <div class="apq-box"><div class="apq-label">Availability</div><div class="apq-val">${m.Availability}%</div></div>
+                                <div class="apq-box"><div class="apq-label">Performance</div><div class="apq-val">${m.Performance}%</div></div>
+                                <div class="apq-box"><div class="apq-label">Quality</div><div class="apq-val">${m.Quality}%</div></div>
+                            </div>
+                            <div class="prod-stats">
+                                <span>Tổng: <strong>${m.total_produced}</strong></span>
+                                <span style="color:#059669;">Đạt: <strong>${m.total_good}</strong></span>
+                                <span style="color:#ef4444;">Lỗi: <strong>${Math.max(0, m.total_defect)}</strong></span>
+                            </div>
                         </div>
-                        <div class="oee-main">
-                            <div style="font-size:0.8rem; color:#64748b; font-weight:600;">HIỆU SUẤT TỔNG THỂ (OEE)</div>
-                            <div class="oee-score" style="color: ${m.OEE >= 85 ? '#10b981' : (m.OEE >= 60 ? '#2563eb' : '#ef4444')}">${m.OEE}%</div>
+                        <div class="action-row">
+                            <button class="btn-report" onclick="openReportModal(${m.machine_id}, '${m.machine_name}')">+ Nhập báo cáo</button>
+                            ${toggleButton}
                         </div>
-                        <div class="apq-grid">
-                            <div class="apq-box"><div class="apq-label">Availability</div><div class="apq-val">${m.Availability}%</div></div>
-                            <div class="apq-box"><div class="apq-label">Performance</div><div class="apq-val">${m.Performance}%</div></div>
-                            <div class="apq-box"><div class="apq-label">Quality</div><div class="apq-val">${m.Quality}%</div></div>
-                        </div>
-                        <div class="prod-stats">
-                            <span>Tổng: <strong>${m.total_produced}</strong></span>
-                            <span style="color:#059669;">Đạt: <strong>${m.total_good}</strong></span>
-                            <span style="color:#ef4444;">Lỗi: <strong>${Math.max(0, m.total_defect)}</strong></span>
-                        </div>
-                        <button class="btn-report" onclick="openModal(${m.machine_id}, '${m.machine_name}')">+ Nhập báo cáo ca</button>
                     </div>
                 `;
             });
@@ -242,7 +305,59 @@
             });
         }
 
-        function openModal(id, name) {
+        // Xử lý dừng máy kèm lý do
+        function openStopModal(id, name) {
+            document.getElementById('stopMachineId').value = id;
+            document.getElementById('stopModalTitle').innerText = '⚠️ Dừng máy: ' + name;
+            document.getElementById('quickReason').value = '';
+            document.getElementById('inputStopReason').value = '';
+            document.getElementById('stopErrorMsg').style.display = 'none';
+            document.getElementById('stopModal').classList.add('active');
+        }
+
+        function applyQuickReason() {
+            const val = document.getElementById('quickReason').value;
+            if (val) document.getElementById('inputStopReason').value = val;
+        }
+
+        async function confirmStopMachine() {
+            const machine_id = parseInt(document.getElementById('stopMachineId').value);
+            const reason = document.getElementById('inputStopReason').value.trim();
+            const errEl = document.getElementById('stopErrorMsg');
+
+            if (!reason) {
+                errEl.innerText = 'Vui lòng nhập hoặc chọn lý do dừng máy!';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const res = await fetch('/api/machine-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ machine_id, status: 'STOPPED', reason })
+            });
+
+            if (res.ok) {
+                closeModal('stopModal');
+                loadDashboard();
+            } else {
+                const data = await res.json();
+                errEl.innerText = data.message || 'Lỗi cập nhật trạng thái!';
+                errEl.style.display = 'block';
+            }
+        }
+
+        async function startMachine(machine_id) {
+            const res = await fetch('/api/machine-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ machine_id, status: 'RUNNING', reason: '' })
+            });
+            if (res.ok) loadDashboard();
+        }
+
+        // Xử lý nhập báo cáo sản lượng
+        function openReportModal(id, name) {
             document.getElementById('modalMachineId').value = id;
             document.getElementById('modalTitle').innerText = 'Báo cáo ca: ' + name;
             document.getElementById('inputTotal').value = '';
@@ -251,8 +366,8 @@
             document.getElementById('reportModal').classList.add('active');
         }
 
-        function closeModal() {
-            document.getElementById('reportModal').classList.remove('active');
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
         }
 
         async function submitReport() {
@@ -279,16 +394,31 @@
             });
 
             if (res.ok) {
-                closeModal();
+                closeModal('reportModal');
                 loadDashboard();
             } else {
-                errEl.innerText = 'Lỗi khi lưu dữ liệu!';
+                const errData = await res.json();
+                errEl.innerText = errData.message || 'Lỗi khi lưu dữ liệu!';
                 errEl.style.display = 'block';
             }
         }
 
+        async function resetShift() {
+            if (!confirm('Bạn có chắc chắn muốn làm mới ca làm việc? Toàn bộ số liệu sẽ về 0 và 3 máy sẽ trở về trạng thái RUNNING!')) {
+                return;
+            }
+            const res = await fetch('/api/reset-shift', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Đã làm mới ca làm việc thành công!');
+                loadDashboard();
+            } else {
+                alert(data.message || 'Không có quyền thực hiện!');
+            }
+        }
+
         loadDashboard();
-        setInterval(loadDashboard, 10000); // Tự động cập nhật mỗi 10 giây
+        setInterval(loadDashboard, 10000);
     </script>
 </body>
 </html>
