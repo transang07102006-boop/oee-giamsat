@@ -13,6 +13,7 @@ def init_db():
     conn = sqlite3.connect('factory_oee.db')
     cursor = conn.cursor()
     
+    # Tạo bảng Users
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Users (
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,7 +32,7 @@ def init_db():
         )
     ''')
     
-
+   
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ProductionLogs (
             log_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,154 +43,9 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
 
     cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('quanly', '123456', 'ADMIN')")
-    cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('nhanvien1', '123456', 'OPERATOR')")
-
-    cursor.execute("SELECT COUNT(*) FROM Machines")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Đóng Gói 01', 'RUNNING')")
-        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Cắt CNC 02', 'RUNNING')")
-        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Dập 03', 'STOPPED')")
+    cursor.execute("INSERT OR IGNORE INTO Users (username, password, role)
         
-    conn.commit()
-    conn.close()
-init_db()
-
-@app.route('/')
-def index():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    return render_template('index.html', user=session)
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = ""
-    if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password'].strip()
-        
-        conn = get_db_connection()
-        user = conn.execute('SELECT * FROM Users WHERE username = ? AND password = ?', (username, password)).fetchone()
-        conn.close()
-        
-        if user:
-            session['username'] = user['username']
-            session['role'] = user['role']
-            return redirect(url_for('index'))
-        error = "Sai tên đăng nhập hoặc mật khẩu!"
-        
-    return f'''
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Đăng nhập Hệ thống OEE</title>
-        <style>
-            body {{ font-family: 'Segoe UI', system-ui, sans-serif; background: #f1f5f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }}
-            .login-box {{ background: white; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 360px; }}
-            h2 {{ margin-top: 0; color: #1e293b; text-align: center; margin-bottom: 24px; }}
-            label {{ display: block; font-size: 0.9rem; font-weight: 600; color: #334155; margin-bottom: 6px; }}
-            input[type="text"], input[type="password"] {{ width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 16px; box-sizing: border-box; font-size: 1rem; }}
-            button {{ width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }}
-            button:hover {{ background: #1d4ed8; }}
-            .error {{ color: #ef4444; font-size: 0.85rem; text-align: center; margin-bottom: 12px; }}
-        </style>
-    </head>
-    <body>
-        <div class="login-box">
-            <h2>🏭 ĐĂNG NHẬP OEE</h2>
-            {f'<div class="error">{error}</div>' if error else ''}
-            <form method="post">
-                <label>Tài khoản nhân viên:</label>
-                <input type="text" name="username" placeholder="Nhập quanly hoặc nhanvien1" required>
-                <label>Mật khẩu:</label>
-                <input type="password" name="password" placeholder="Nhập mật khẩu" required>
-                <button type="submit">Đăng nhập hệ thống</button>
-            </form>
-        </div>
-    </body>
-    </html>
-    '''
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-@app.route('/api/update-production', methods=['POST'])
-def update_production():
-    if session.get('role') not in ['ADMIN', 'OPERATOR']:
-        return jsonify({'status': 'error', 'message': 'Không có quyền truy cập'}), 403
-        
-    data = request.json
-    try:
-        machine_id = int(data.get('machine_id'))
-        total_count = int(data.get('total_count'))
-        good_count = int(data.get('good_count'))
-    except (TypeError, ValueError):
-        return jsonify({'status': 'error', 'message': 'Dữ liệu phải là số nguyên'}), 400
-
-    if total_count <= 0 or good_count < 0 or good_count > total_count:
-        return jsonify({'status': 'error', 'message': 'Số lượng không hợp lệ (Sản phẩm đạt phải nhỏ hơn hoặc bằng tổng sản lượng)'}), 400
-        
-    defect_count = total_count - good_count
-    
-    conn = get_db_connection()
-    conn.execute('''
-        INSERT INTO ProductionLogs (machine_id, total_count, good_count, defect_count)
-        VALUES (?, ?, ?, ?)
-    ''', (machine_id, total_count, good_count, defect_count))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'status': 'success'})
-
-@app.route('/api/dashboard')
-def get_dashboard_data():
-    conn = get_db_connection()
-    query = '''
-        SELECT m.machine_id, m.machine_name, m.status,
-               IFNULL(SUM(p.total_count), 0) as total_count,
-               IFNULL(SUM(p.good_count), 0) as good_count,
-               IFNULL(SUM(p.defect_count), 0) as defect_count
-        FROM Machines m
-        LEFT JOIN ProductionLogs p ON m.machine_id = p.machine_id
-        GROUP BY m.machine_id
-    '''
-    rows = conn.execute(query).fetchall()
-    conn.close()
-    
-    machines_data = []
-    planned_time, run_time, ideal_rate = 480, 420, 2.0
-    
-    for row in rows:
-        total = row['total_count']
-        good = row['good_count']
-        defect = max(0, row['defect_count'])
-        status = row['status']
-        
-        availability = round((run_time / planned_time) * 100, 1) if status == 'RUNNING' else 0.0
-        expected_max = ideal_rate * run_time
-        performance = min(round((total / expected_max) * 100, 1), 100.0) if total > 0 else 0.0
-        quality = min(round((good / total * 100), 1), 100.0) if total > 0 else 0.0
-        oee = round((availability * performance * quality) / 10000, 1)
-        
-        machines_data.append({
-            'machine_id': row['machine_id'],
-            'machine_name': row['machine_name'],
-            'status': status,
-            'total_produced': total,
-            'total_good': good,
-            'total_defect': defect,
-            'Availability': availability,
-            'Performance': performance,
-            'Quality': quality,
-            'OEE': oee
-        })
-        
-    return jsonify(machines_data)
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+   
