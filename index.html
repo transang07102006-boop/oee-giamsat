@@ -2,62 +2,293 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Hệ Thống Phân Tích OEE & Sản Lượng</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Giám Sát OEE Nhà Máy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: white; padding: 20px; border-radius: 10px; border-top: 4px solid #10b981; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .oee-badge { font-size: 24px; font-weight: bold; color: #2563eb; }
-        .btn-update { background: #2563eb; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        :root {
+            --bg-main: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --primary: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-dark); padding: 20px; }
+        
+        /* Header */
+        .header {
+            background: #1e293b; color: white; padding: 16px 24px; border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+            margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.35rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
+        .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
+        .badge-role { background: #3b82f6; padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; }
+        .btn-logout { background: #ef4444; color: white; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-weight: 500; }
+
+        /* Tổng quan KPI */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .kpi-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--primary); }
+        .kpi-title { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+        .kpi-value { font-size: 1.8rem; font-weight: 700; margin-top: 8px; color: var(--text-dark); }
+
+        /* Danh sách máy */
+        .machines-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        .machine-card {
+            background: var(--card-bg); border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border-top: 5px solid var(--success);
+            transition: transform 0.2s;
+        }
+        .machine-card.stopped { border-top-color: var(--danger); }
+        .machine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .machine-name { font-size: 1.15rem; font-weight: 700; }
+        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .status-running { background: #d1fae5; color: #065f46; }
+        .status-stopped { background: #fee2e2; color: #991b1b; }
+
+        .oee-main { text-align: center; background: #f8fafc; padding: 14px; border-radius: 10px; margin-bottom: 16px; }
+        .oee-score { font-size: 2.2rem; font-weight: 800; color: var(--primary); }
+        
+        /* Chỉ số A - P - Q */
+        .apq-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-bottom: 16px; }
+        .apq-box { background: #f1f5f9; padding: 8px; border-radius: 8px; }
+        .apq-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+        .apq-val { font-size: 1rem; font-weight: 700; margin-top: 2px; }
+
+        .prod-stats { font-size: 0.9rem; color: #334155; margin-bottom: 16px; display: flex; justify-content: space-between; background: #f8fafc; padding: 10px; border-radius: 8px; }
+        .btn-report {
+            width: 100%; padding: 10px; background: var(--primary); color: white; border: none;
+            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.95rem;
+        }
+        .btn-report:hover { background: #1d4ed8; }
+
+        /* Khu vực biểu đồ */
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .chart-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .chart-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: #1e293b; }
+
+        /* Modal nhập liệu */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.6); align-items: center; justify-content: center; z-index: 100; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-cancel { background: #e2e8f0; color: #334155; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-submit { background: var(--success); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        
+        @media (max-width: 500px) { .charts-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
+
     <div class="header">
-        <h2>BẢNG GIÁM SÁT OEE NHÀ MÁY</h2>
-        <div>
-            Xin chào: <strong>{{ user.username }}</strong> ({{ user.role }}) | 
-            <a href="/logout">Đăng xuất</a>
+        <h1>🏭 HỆ THỐNG GIÁM SÁT OEE NHÀ MÁY</h1>
+        <div class="user-info">
+            <span>Xin chào: <strong>{{ user.username }}</strong></span>
+            <span class="badge-role">{{ user.role }}</span>
+            <a href="/logout" class="btn-logout">Đăng xuất</a>
         </div>
     </div>
-    
-    <div class="grid" id="cards"></div>
+
+    <!-- KPI Tổng quan -->
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-left-color: #2563eb;">
+            <div class="kpi-title">OEE Trung Bình Xưởng</div>
+            <div class="kpi-value" id="avg-oee">0%</div>
+        </div>
+        <div class="kpi-card" style="border-left-color: #10b981;">
+            <div class="kpi-title">Tổng Sản Lượng Thực Tế</div>
+            <div class="kpi-value" id="sum-total">0</div>
+        </div>
+        <div class="kpi-card" style="border-left-color: #059669;">
+            <div class="kpi-title">Tổng Sản Phẩm Đạt</div>
+            <div class="kpi-value" id="sum-good" style="color: #059669;">0</div>
+        </div>
+        <div class="kpi-card" style="border-left-color: #ef4444;">
+            <div class="kpi-title">Tổng Sản Phẩm Lỗi</div>
+            <div class="kpi-value" id="sum-defect" style="color: #ef4444;">0</div>
+        </div>
+    </div>
+
+    <!-- Danh sách thẻ máy -->
+    <div class="machines-grid" id="machines-container"></div>
+
+    <!-- Biểu đồ trực quan -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-title">📊 So Sánh Chỉ Số OEE Theo Thiết Bị (%)</div>
+            <canvas id="oeeChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">📦 Cơ Cấu Sản Lượng Đạt vs. Lỗi</div>
+            <canvas id="prodChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Modal Nhập Báo Cáo Ca -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 16px;" id="modalTitle">Nhập Báo Cáo Sản Lượng</h3>
+            <input type="hidden" id="modalMachineId">
+            <div class="form-group">
+                <label>Tổng sản lượng sản xuất trong ca:</label>
+                <input type="number" id="inputTotal" min="1" placeholder="Ví dụ: 500">
+            </div>
+            <div class="form-group">
+                <label>Số sản phẩm đạt chuẩn (OK):</label>
+                <input type="number" id="inputGood" min="0" placeholder="Ví dụ: 485">
+            </div>
+            <div id="errorMsg" style="color: #ef4444; font-size: 0.85rem; display: none; margin-top: 8px;"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+                <button class="btn-submit" onclick="submitReport()">Lưu Báo Cáo</button>
+            </div>
+        </div>
+    </div>
 
     <script>
-        async function updateData(machineId) {
-            const total = prompt("Nhập tổng sản lượng máy làm được:");
-            const good = prompt("Nhập số sản phẩm ĐẠT chuẩn:");
-            if(total && good) {
-                await fetch('/api/update-production', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ machine_id: machineId, total_count: parseInt(total), good_count: parseInt(good) })
-                });
-                alert("Đã cập nhật sản lượng!");
-                loadDashboard();
-            }
-        }
+        let oeeChartInstance = null;
+        let prodChartInstance = null;
 
         async function loadDashboard() {
             const res = await fetch('/api/dashboard');
             const data = await res.json();
-            const cardsDiv = document.getElementById('cards');
-            cardsDiv.innerHTML = '';
-            
+
+            let totalOee = 0, activeMachines = 0, sumTotal = 0, sumGood = 0, sumDefect = 0;
+            const container = document.getElementById('machines-container');
+            container.innerHTML = '';
+
+            const labels = [], oeeValues = [], goodValues = [], defectValues = [];
+
             data.forEach(m => {
-                cardsDiv.innerHTML += `
-                    <div class="card">
-                        <h3>${m.machine_name}</h3>
-                        <p>Trạng thái: <strong>${m.status}</strong></p>
-                        <p>OEE: <span class="oee-badge">${m.OEE}%</span></p>
-                        <p>Tổng sản lượng: ${m.total_produced} (Đạt: ${m.total_good} | Lỗi: ${m.total_defect})</p>
-                        <button class="btn-update" onclick="updateData(${m.machine_id})">+ Nhập báo cáo ca</button>
+                if (m.status === 'RUNNING') { totalOee += m.OEE; activeMachines++; }
+                sumTotal += m.total_produced;
+                sumGood += m.total_good;
+                sumDefect += Math.max(0, m.total_defect);
+
+                labels.push(m.machine_name);
+                oeeValues.push(m.OEE);
+                goodValues.push(m.total_good);
+                defectValues.push(Math.max(0, m.total_defect));
+
+                const isStopped = m.status !== 'RUNNING';
+                container.innerHTML += `
+                    <div class="machine-card ${isStopped ? 'stopped' : ''}">
+                        <div class="machine-header">
+                            <span class="machine-name">${m.machine_name}</span>
+                            <span class="status-pill ${isStopped ? 'status-stopped' : 'status-running'}">${m.status}</span>
+                        </div>
+                        <div class="oee-main">
+                            <div style="font-size:0.8rem; color:#64748b; font-weight:600;">HIỆU SUẤT TỔNG THỂ (OEE)</div>
+                            <div class="oee-score" style="color: ${m.OEE >= 85 ? '#10b981' : (m.OEE >= 60 ? '#2563eb' : '#ef4444')}">${m.OEE}%</div>
+                        </div>
+                        <div class="apq-grid">
+                            <div class="apq-box"><div class="apq-label">Availability</div><div class="apq-val">${m.Availability}%</div></div>
+                            <div class="apq-box"><div class="apq-label">Performance</div><div class="apq-val">${m.Performance}%</div></div>
+                            <div class="apq-box"><div class="apq-label">Quality</div><div class="apq-val">${m.Quality}%</div></div>
+                        </div>
+                        <div class="prod-stats">
+                            <span>Tổng: <strong>${m.total_produced}</strong></span>
+                            <span style="color:#059669;">Đạt: <strong>${m.total_good}</strong></span>
+                            <span style="color:#ef4444;">Lỗi: <strong>${Math.max(0, m.total_defect)}</strong></span>
+                        </div>
+                        <button class="btn-report" onclick="openModal(${m.machine_id}, '${m.machine_name}')">+ Nhập báo cáo ca</button>
                     </div>
                 `;
             });
+
+            document.getElementById('avg-oee').innerText = activeMachines > 0 ? (totalOee / activeMachines).toFixed(1) + '%' : '0%';
+            document.getElementById('sum-total').innerText = sumTotal.toLocaleString();
+            document.getElementById('sum-good').innerText = sumGood.toLocaleString();
+            document.getElementById('sum-defect').innerText = sumDefect.toLocaleString();
+
+            renderCharts(labels, oeeValues, goodValues, defectValues);
         }
+
+        function renderCharts(labels, oeeValues, goodValues, defectValues) {
+            if (oeeChartInstance) oeeChartInstance.destroy();
+            if (prodChartInstance) prodChartInstance.destroy();
+
+            oeeChartInstance = new Chart(document.getElementById('oeeChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'OEE (%)',
+                        data: oeeValues,
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+                        borderRadius: 6
+                    }]
+                },
+                options: { scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+
+            prodChartInstance = new Chart(document.getElementById('prodChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Sản phẩm Đạt', data: goodValues, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Sản phẩm Lỗi', data: defectValues, backgroundColor: '#ef4444', borderRadius: 4 }
+                    ]
+                },
+                options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+            });
+        }
+
+        function openModal(id, name) {
+            document.getElementById('modalMachineId').value = id;
+            document.getElementById('modalTitle').innerText = 'Báo cáo ca: ' + name;
+            document.getElementById('inputTotal').value = '';
+            document.getElementById('inputGood').value = '';
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('reportModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('reportModal').classList.remove('active');
+        }
+
+        async function submitReport() {
+            const machine_id = parseInt(document.getElementById('modalMachineId').value);
+            const total_count = parseInt(document.getElementById('inputTotal').value);
+            const good_count = parseInt(document.getElementById('inputGood').value);
+            const errEl = document.getElementById('errorMsg');
+
+            if (isNaN(total_count) || isNaN(good_count) || total_count <= 0 || good_count < 0) {
+                errEl.innerText = 'Vui lòng nhập số lượng hợp lệ!';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (good_count > total_count) {
+                errEl.innerText = 'Số sản phẩm đạt không được lớn hơn tổng sản lượng!';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const res = await fetch('/api/update-production', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ machine_id, total_count, good_count })
+            });
+
+            if (res.ok) {
+                closeModal();
+                loadDashboard();
+            } else {
+                errEl.innerText = 'Lỗi khi lưu dữ liệu!';
+                errEl.style.display = 'block';
+            }
+        }
+
         loadDashboard();
+        setInterval(loadDashboard, 10000); // Tự động cập nhật mỗi 10 giây
     </script>
 </body>
 </html>
