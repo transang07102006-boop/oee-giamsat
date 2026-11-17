@@ -71,18 +71,21 @@
         .prod-stats { font-size: 0.9rem; color: #334155; margin-bottom: 16px; display: flex; justify-content: space-between; background: #f8fafc; padding: 10px; border-radius: 8px; }
         .action-row { display: flex; gap: 8px; }
         .btn-report {
-            flex: 2; padding: 10px; background: var(--primary); color: white; border: none;
-            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            flex: 1.6; padding: 10px; background: var(--primary); color: white; border: none;
+            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem;
         }
         .btn-report:hover { background: #1d4ed8; }
+        .btn-report:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+        
         .btn-toggle {
-            flex: 1.2; padding: 10px; border: none; border-radius: 8px; font-weight: 600;
+            flex: 1.4; padding: 10px; border: none; border-radius: 8px; font-weight: 600;
             cursor: pointer; font-size: 0.85rem; color: white;
         }
         .btn-start { background: var(--success); }
         .btn-start:hover { background: #059669; }
         .btn-stop { background: var(--danger); }
         .btn-stop:hover { background: #dc2626; }
+        .btn-locked { background: #94a3b8; color: #ffffff; cursor: not-allowed; }
 
         /* Khu vực biểu đồ */
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
@@ -178,6 +181,9 @@
     <div class="modal" id="stopModal">
         <div class="modal-content">
             <h3 style="margin-bottom: 12px; color: #dc2626;" id="stopModalTitle">⚠️ Báo Dừng Hoạt Động Máy</h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 14px;">
+                Lưu ý: Sau khi báo dừng, máy sẽ tạm khóa cho đến khi Quản lý kiểm tra an toàn và xác nhận chạy lại.
+            </p>
             <input type="hidden" id="stopMachineId">
             <div class="form-group">
                 <label>Chọn nhanh sự cố thường gặp:</label>
@@ -202,6 +208,7 @@
     </div>
 
     <script>
+        const USER_ROLE = "{{ user.role }}";
         let oeeChartInstance = null;
         let prodChartInstance = null;
 
@@ -231,9 +238,20 @@
                     ? `<div class="stop-reason-box"><strong>⚠️ Lý do dừng:</strong> ${m.stop_reason}</div>` 
                     : '';
 
-                const toggleButton = isStopped
-                    ? `<button class="btn-toggle btn-start" onclick="startMachine(${m.machine_id})">▶ Chạy lại</button>`
-                    : `<button class="btn-toggle btn-stop" onclick="openStopModal(${m.machine_id}, '${m.machine_name}')">⏹ Dừng máy</button>`;
+                // Phân quyền nút điều khiển: Nhân viên được báo dừng, chỉ Quản lý mới được mở lại
+                let toggleButton = '';
+                if (isStopped) {
+                    toggleButton = USER_ROLE === 'ADMIN'
+                        ? `<button class="btn-toggle btn-start" onclick="startMachine(${m.machine_id})">▶ Duyệt chạy lại</button>`
+                        : `<button class="btn-toggle btn-locked" disabled title="Đang chờ Quản lý kiểm tra">🔒 Chờ kiểm tra</button>`;
+                } else {
+                    toggleButton = `<button class="btn-toggle btn-stop" onclick="openStopModal(${m.machine_id}, '${m.machine_name}')">⏹ Báo dừng</button>`;
+                }
+
+                // Khóa nút nhập báo cáo nếu máy đang dừng
+                const reportButton = isStopped
+                    ? `<button class="btn-report" disabled title="Máy đang dừng hoạt động">+ Nhập báo cáo</button>`
+                    : `<button class="btn-report" onclick="openReportModal(${m.machine_id}, '${m.machine_name}')">+ Nhập báo cáo</button>`;
 
                 container.innerHTML += `
                     <div class="machine-card ${isStopped ? 'stopped' : ''}">
@@ -259,7 +277,7 @@
                             </div>
                         </div>
                         <div class="action-row">
-                            <button class="btn-report" onclick="openReportModal(${m.machine_id}, '${m.machine_name}')">+ Nhập báo cáo</button>
+                            ${reportButton}
                             ${toggleButton}
                         </div>
                     </div>
@@ -348,12 +366,18 @@
         }
 
         async function startMachine(machine_id) {
+            if (!confirm('Xác nhận thiết bị đã được kiểm tra an toàn và sẵn sàng chạy lại?')) return;
             const res = await fetch('/api/machine-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ machine_id, status: 'RUNNING', reason: '' })
             });
-            if (res.ok) loadDashboard();
+            if (res.ok) {
+                loadDashboard();
+            } else {
+                const data = await res.json();
+                alert(data.message || 'Không có quyền thực hiện!');
+            }
         }
 
         // Xử lý nhập báo cáo sản lượng

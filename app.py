@@ -23,7 +23,7 @@ def init_db():
         )
     ''')
     
-    # 2. Tạo bảng Machines (có thêm cột stop_reason để lưu lý do dừng)
+    # 2. Tạo bảng Machines (lưu trạng thái & lý do dừng máy)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Machines (
             machine_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +62,6 @@ def init_db():
         cursor.execute("INSERT INTO Machines (machine_name, status, stop_reason) VALUES ('Máy Cắt CNC 02', 'RUNNING', '')")
         cursor.execute("INSERT INTO Machines (machine_name, status, stop_reason) VALUES ('Máy Dập 03', 'RUNNING', '')")
     else:
-        # Đảm bảo đồng bộ trạng thái sẵn sàng cho các máy chưa có lý do dừng
         cursor.execute("UPDATE Machines SET status = 'RUNNING', stop_reason = '' WHERE stop_reason IS NULL OR stop_reason = ''")
         
     conn.commit()
@@ -135,7 +134,8 @@ def logout():
 
 @app.route('/api/machine-status', methods=['POST'])
 def update_machine_status():
-    if session.get('role') not in ['ADMIN', 'OPERATOR']:
+    role = session.get('role')
+    if role not in ['ADMIN', 'OPERATOR']:
         return jsonify({'status': 'error', 'message': 'Không có quyền truy cập'}), 403
         
     data = request.json
@@ -143,11 +143,19 @@ def update_machine_status():
     new_status = data.get('status') # 'RUNNING' hoặc 'STOPPED'
     stop_reason = data.get('reason', '').strip()
     
+    # Chỉ Quản lý (ADMIN) mới được phép xác nhận khởi động lại máy
+    if new_status == 'RUNNING' and role != 'ADMIN':
+        return jsonify({'status': 'error', 'message': 'Chỉ Quản lý (ADMIN) mới có quyền xác nhận chạy lại máy sau khi kiểm tra!'}), 403
+        
     if new_status == 'STOPPED' and not stop_reason:
         return jsonify({'status': 'error', 'message': 'Vui lòng nhập lý do dừng máy!'}), 400
         
     if new_status == 'RUNNING':
         stop_reason = ''
+    else:
+        # Ghi nhận người báo dừng để Quản lý nắm rõ
+        reporter = session.get('username', 'Nhân viên')
+        stop_reason = f"{stop_reason} (Báo bởi: {reporter})"
         
     conn = get_db_connection()
     conn.execute('UPDATE Machines SET status = ?, stop_reason = ? WHERE machine_id = ?', (new_status, stop_reason, machine_id))
@@ -191,7 +199,6 @@ def reset_shift():
         
     conn = get_db_connection()
     conn.execute('DELETE FROM ProductionLogs')
-    # Đưa cả 3 máy về trạng thái RUNNING sẵn sàng cho ca mới
     conn.execute("UPDATE Machines SET status = 'RUNNING', stop_reason = ''")
     conn.commit()
     conn.close()
