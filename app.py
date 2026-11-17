@@ -13,7 +13,7 @@ def init_db():
     conn = sqlite3.connect('factory_oee.db')
     cursor = conn.cursor()
     
-    # Tạo bảng Users
+    # 1. Tạo bảng Users
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Users (
             user_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,16 +23,23 @@ def init_db():
         )
     ''')
     
-    # Tạo bảng Machines
+    # 2. Tạo bảng Machines (có thêm cột stop_reason để lưu lý do dừng)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Machines (
             machine_id INTEGER PRIMARY KEY AUTOINCREMENT,
             machine_name TEXT NOT NULL,
-            status TEXT NOT NULL
+            status TEXT NOT NULL DEFAULT 'RUNNING',
+            stop_reason TEXT DEFAULT ''
         )
     ''')
     
-    # Tạo bảng ProductionLogs
+    # Tự động nâng cấp bảng Machines nếu dùng file DB cũ chưa có cột stop_reason
+    cursor.execute("PRAGMA table_info(Machines)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'stop_reason' not in columns:
+        cursor.execute("ALTER TABLE Machines ADD COLUMN stop_reason TEXT DEFAULT ''")
+    
+    # 3. Tạo bảng ProductionLogs
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ProductionLogs (
             log_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,21 +51,24 @@ def init_db():
         )
     ''')
     
-    # Thêm tài khoản mặc định nếu chưa tồn tại
+    # Thêm tài khoản mặc định
     cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('quanly', '123456', 'ADMIN')")
     cursor.execute("INSERT OR IGNORE INTO Users (username, password, role) VALUES ('nhanvien1', '123456', 'OPERATOR')")
     
-    # Thêm danh sách máy mặc định nếu bảng trống
+    # Khởi tạo 3 máy mặc định đều ở trạng thái RUNNING (sẵn sàng làm việc)
     cursor.execute("SELECT COUNT(*) FROM Machines")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Đóng Gói 01', 'RUNNING')")
-        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Cắt CNC 02', 'RUNNING')")
-        cursor.execute("INSERT INTO Machines (machine_name, status) VALUES ('Máy Dập 03', 'STOPPED')")
+        cursor.execute("INSERT INTO Machines (machine_name, status, stop_reason) VALUES ('Máy Đóng Gói 01', 'RUNNING', '')")
+        cursor.execute("INSERT INTO Machines (machine_name, status, stop_reason) VALUES ('Máy Cắt CNC 02', 'RUNNING', '')")
+        cursor.execute("INSERT INTO Machines (machine_name, status, stop_reason) VALUES ('Máy Dập 03', 'RUNNING', '')")
+    else:
+        # Đảm bảo đồng bộ trạng thái sẵn sàng cho các máy chưa có lý do dừng
+        cursor.execute("UPDATE Machines SET status = 'RUNNING', stop_reason = '' WHERE stop_reason IS NULL OR stop_reason = ''")
         
     conn.commit()
     conn.close()
 
-# Khởi tạo database ngay khi ứng dụng khởi động
+# Khởi tạo và đồng bộ database ngay khi chạy
 init_db()
 
 @app.route('/')
@@ -123,6 +133,29 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+@app.route('/api/machine-status', methods=['POST'])
+def update_machine_status():
+    if session.get('role') not in ['ADMIN', 'OPERATOR']:
+        return jsonify({'status': 'error', 'message': 'Không có quyền truy cập'}), 403
+        
+    data = request.json
+    machine_id = data.get('machine_id')
+    new_status = data.get('status') # 'RUNNING' hoặc 'STOPPED'
+    stop_reason = data.get('reason', '').strip()
+    
+    if new_status == 'STOPPED' and not stop_reason:
+        return jsonify({'status': 'error', 'message': 'Vui lòng nhập lý do dừng máy!'}), 400
+        
+    if new_status == 'RUNNING':
+        stop_reason = ''
+        
+    conn = get_db_connection()
+    conn.execute('UPDATE Machines SET status = ?, stop_reason = ? WHERE machine_id = ?', (new_status, stop_reason, machine_id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'status': 'success'})
+
 @app.route('/api/update-production', methods=['POST'])
 def update_production():
     if session.get('role') not in ['ADMIN', 'OPERATOR']:
@@ -136,7 +169,6 @@ def update_production():
     except (TypeError, ValueError):
         return jsonify({'status': 'error', 'message': 'Dữ liệu phải là số nguyên'}), 400
 
-    # Chặn lỗi số sản phẩm đạt lớn hơn tổng sản lượng hoặc số âm
     if total_count <= 0 or good_count < 0 or good_count > total_count:
         return jsonify({'status': 'error', 'message': 'Số lượng không hợp lệ (Sản phẩm đạt phải nhỏ hơn hoặc bằng tổng sản lượng)'}), 400
         
@@ -159,6 +191,8 @@ def reset_shift():
         
     conn = get_db_connection()
     conn.execute('DELETE FROM ProductionLogs')
+    # Đưa cả 3 máy về trạng thái RUNNING sẵn sàng cho ca mới
+    conn.execute("UPDATE Machines SET status = 'RUNNING', stop_reason = ''")
     conn.commit()
     conn.close()
     
@@ -168,7 +202,7 @@ def reset_shift():
 def get_dashboard_data():
     conn = get_db_connection()
     query = '''
-        SELECT m.machine_id, m.machine_name, m.status,
+        SELECT m.machine_id, m.machine_name, m.status, m.stop_reason,
                IFNULL(SUM(p.total_count), 0) as total_count,
                IFNULL(SUM(p.good_count), 0) as good_count,
                IFNULL(SUM(p.defect_count), 0) as defect_count
@@ -187,6 +221,7 @@ def get_dashboard_data():
         good = row['good_count']
         defect = max(0, row['defect_count'])
         status = row['status']
+        stop_reason = row['stop_reason'] or ''
         
         availability = round((run_time / planned_time) * 100, 1) if status == 'RUNNING' else 0.0
         expected_max = ideal_rate * run_time
@@ -198,6 +233,7 @@ def get_dashboard_data():
             'machine_id': row['machine_id'],
             'machine_name': row['machine_name'],
             'status': status,
+            'stop_reason': stop_reason,
             'total_produced': total,
             'total_good': good,
             'total_defect': defect,
